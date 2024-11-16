@@ -1,7 +1,6 @@
 from supabase import create_client, Client
 from datetime import datetime
 import pandas as pd
-import numpy as np
 
 url: str = "https://mwivhbuesrdrfhihxjqs.supabase.co"
 key: str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13aXZoYnVlc3JkcmZoaWh4anFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTk4NjE0NzQsImV4cCI6MjAzNTQzNzQ3NH0.cG7N8em6tqc2OWijtqTQg-EkUqHM6Bcf7grg-bPDcDA"
@@ -166,8 +165,8 @@ def process_uploaded_file(uploaded_file):
     df['date_key'] = df['timestamp_measurement'].dt.strftime('%Y%m%d')
     df['wakeup_time'] = df['timestamp_measurement'].dt.strftime('%H:%M:%S')
     
-    df = df.replace('-', None)
-    df = df.fillna(np.nan).replace([np.nan], [None])
+    df = df.replace('-', None)  # Replace '-' with None
+    df = df.where(pd.notnull(df), None)  # Replace NaN with None
     # Drop the original timestamp column
     df_processed = df.drop('timestamp_measurement', axis=1)
       
@@ -226,13 +225,17 @@ def calculate_intensity_variation() -> dict:
 def store_fuelling_data(activity_id, nutrition_type, carbs_gram, nutrition_tag, feeling_tag):
     # Create a DataFrame from the input data
     data = {
-        'activity_id': [int(activity_id) if isinstance(activity_id, (int, np.integer)) else activity_id],
+        'activity_id': [activity_id],
         'nutrition_type': [nutrition_type],
-        'carbs_grams': [int(carbs_gram) if isinstance(carbs_gram, (int, np.integer)) else carbs_gram],
+        'carbs_grams': [carbs_gram],
         'nutrition_tag': [nutrition_tag],
         'feeling_tag': [feeling_tag]
     }
     df = pd.DataFrame(data)  # Convert to DataFrame
+
+    # Convert data types using pandas
+    df['activity_id'] = df['activity_id'].astype(int)  # Ensure activity_id is an integer
+    df['carbs_grams'] = df['carbs_grams'].astype(int)  # Ensure carbs_grams is an integer
 
     # Insert new records
     try:

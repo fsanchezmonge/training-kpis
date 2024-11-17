@@ -2,9 +2,11 @@ from supabase import create_client, Client
 from datetime import datetime
 import pandas as pd
 import numpy as np
+import streamlit as st
 
-url: str = "https://mwivhbuesrdrfhihxjqs.supabase.co"
-key: str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13aXZoYnVlc3JkcmZoaWh4anFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTk4NjE0NzQsImV4cCI6MjAzNTQzNzQ3NH0.cG7N8em6tqc2OWijtqTQg-EkUqHM6Bcf7grg-bPDcDA"
+# Accessing secrets from Streamlit
+url: str = st.secrets["supabase"]["url"]
+key: str = st.secrets["supabase"]["key"]
 supabase: Client = create_client(url, key)
 
 def get_volume_last8weeks() -> dict:

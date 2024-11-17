@@ -178,25 +178,43 @@ def insert_measurements_to_db(df: pd.DataFrame) -> tuple[int, list]:
     Insert new measurements into the database
     Returns: tuple(number of rows inserted, list of errors if any)
     """
-    # Get existing date_keys from the database to avoid duplicates
-    response = supabase.table('fact_hrv').select('date_key').execute()
-    existing_dates = {row['date_key'] for row in response.data}
-    
+    # Get existing records from the database to check for changes
+    existing_records_response = supabase.table('fact_hrv').select('*').execute()
+    existing_records = {row['date_key']: row for row in existing_records_response.data}
+
     # Filter out records that already exist in the database
-    new_records = df[~df['date_key'].isin(existing_dates)]
-    
-    if new_records.empty:
-        return 0, []
-    
-    # Convert DataFrame to list of dictionaries for insertion
-    records_to_insert = new_records.to_dict('records')
-    
+    new_records = df[~df['date_key'].isin(existing_records.keys())]
+
+    # Check for changed records and update them
+    updated_records = []
+    for index, row in df.iterrows():
+        date_key = row['date_key']
+        if date_key in existing_records:
+            existing_record = existing_records[date_key]
+            # Compare only the 'training' field
+            if row['training'] != existing_record['training']:
+                # Prepare the record for update
+                updated_records.append({
+                    'training': row['training'],
+                    'date_key': date_key  # Include the key to identify the record
+                })
+
     # Insert new records
-    try:
-        response = supabase.table('fact_hrv').insert(records_to_insert).execute()
-        return len(records_to_insert), []
-    except Exception as e:
-        return 0, [str(e)]
+    if not new_records.empty:
+        records_to_insert = new_records.to_dict('records')
+        try:
+            response = supabase.table('fact_hrv').insert(records_to_insert).execute()
+        except Exception as e:
+            return 0, [str(e)]
+
+    # Update existing records
+    for record in updated_records:
+        try:
+            supabase.table('fact_hrv').update(record).eq('date_key', record['date_key']).execute()
+        except Exception as e:
+            return 0, [str(e)]
+
+    return len(new_records) + len(updated_records), []
 
 def get_intensity_last4weeks() -> dict:
     response = supabase.table('vw_intensity_last4weeks') \

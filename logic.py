@@ -1,6 +1,7 @@
 from supabase import create_client, Client
 from datetime import datetime
 import pandas as pd
+import numpy as np
 
 url: str = "https://mwivhbuesrdrfhihxjqs.supabase.co"
 key: str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13aXZoYnVlc3JkcmZoaWh4anFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTk4NjE0NzQsImV4cCI6MjAzNTQzNzQ3NH0.cG7N8em6tqc2OWijtqTQg-EkUqHM6Bcf7grg-bPDcDA"
@@ -165,8 +166,8 @@ def process_uploaded_file(uploaded_file):
     df['date_key'] = df['timestamp_measurement'].dt.strftime('%Y%m%d')
     df['wakeup_time'] = df['timestamp_measurement'].dt.strftime('%H:%M:%S')
     
-    df = df.replace('-', None)  # Replace '-' with None
-    df = df.where(pd.notnull(df), None)  # Replace NaN with None
+    df = df.replace('-', None)
+    df = df.fillna(np.nan).replace([np.nan], [None])
     # Drop the original timestamp column
     df_processed = df.drop('timestamp_measurement', axis=1)
       

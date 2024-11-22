@@ -1,7 +1,8 @@
 import streamlit as st
-from logic import calculate_moving_time_variation, process_uploaded_file, insert_measurements_to_db, calculate_adaptation_last4weeks, get_last_file_date, get_last_training_date, calculate_intensity_variation, get_last_activities, store_fuelling_data
+from logic import calculate_moving_time_variation, process_uploaded_file, insert_measurements_to_db, calculate_adaptation_last4weeks, get_last_file_date, get_last_training_date, calculate_intensity_variation, get_last_activities, store_fuelling_data, get_fuelling_data, get_vo2_data
 import datetime
 import pandas as pd
+import plotly.express as px
 
 def display_training_comparison():
     with st.container(border=True, height=250):
@@ -358,11 +359,61 @@ def display_fuelling_data_upload():
         else:
             st.error("Please enter the required data.")
 
+def display_fuelling_log_chart(fuelling_df):
+    col1, col2 = st.columns(2)
+    # Create a point chart using plotly
+    with col1:
+        fig = px.scatter(fuelling_df, x='average_speed', y='carbs_per_hour',
+                        title='Carbs Intake vs Average Speed',
+                        labels={'average_speed': 'Average Speed (km/h)', 'carbs_per_hour': 'Carbs per Hour (g)'})
+        fig.update_traces(marker=dict(size=10))  # Adjust the size as needed
+        # Show the plot in Streamlit
+        st.plotly_chart(fig)
+    with col2:
+        fig = px.scatter(fuelling_df, x='moving_time', y='carbs_per_hour',
+                        title='Carbs Intake vs Moving Time',
+                        labels={'moving_time': 'Moving Time (min)', 'carbs_per_hour': 'Carbs per Hour (g)'})
+        fig.update_traces(marker=dict(size=10))  # Adjust the size as needed
+        # Show the plot in Streamlit
+        st.plotly_chart(fig)
+        
+def display_vo2_chart(vo2_df):
+    # Check if vo2_df is a list and convert it to a DataFrame
+    if isinstance(vo2_df, list):
+        vo2_df = pd.DataFrame(vo2_df)
+
+    # Ensure 'date_key' is treated as a string before conversion
+    vo2_df['date_key'] = vo2_df['date_key'].astype(str)
+
+    # Convert 'date_key' from 'yyyymmdd' to datetime
+    vo2_df['date_key'] = pd.to_datetime(vo2_df['date_key'], format='%Y%m%d', errors='coerce')
+
+    # Sort the DataFrame by 'date_key' in descending order
+    vo2_df = vo2_df.sort_values(by='date_key', ascending=False)
+
+    # Format 'date_key' to 'dd-mm' for display
+    vo2_df['date_key_display'] = vo2_df['date_key'].dt.strftime('%d-%m')
+
+    col1, col2 = st.columns(2)
+    # Create a point chart using plotly
+    with col1:
+        fig = px.scatter(vo2_df, x='date_key_display', y='vo2max',
+                        title='',
+                        labels={'date_key_display': 'Date', 'vo2max': 'VO2max'})
+        
+        # Ensure the x-axis is treated as categorical
+        fig.update_xaxes(type='category')
+
+        fig.update_traces(marker=dict(size=10))  # Adjust the size as needed
+        fig.update_yaxes(title_text='VO2max (mL/kg/min)', range=[53, 64])  # Set the title and range as needed
+        # Show the plot in Streamlit
+        st.plotly_chart(fig)
+
 if __name__ == "__main__":
     st.set_page_config(page_title="Did I get better?", layout='wide', initial_sidebar_state='collapsed')
     
     # Add navigation
-    page = st.sidebar.radio("", ["Indicators", "Data Entry"])
+    page = st.sidebar.radio("", ["Indicators", "Data Entry", "Insights"])
     
     if page == "Indicators":
         st.title("Weekly Training Indicators:runner::bar_chart:")
@@ -409,7 +460,7 @@ if __name__ == "__main__":
         with col4:
             display_mental_energy_comparison()
         
-    else:
+    elif page == "Data Entry":
         st.title("Data Entry")
         st.write("")
         
@@ -423,3 +474,14 @@ if __name__ == "__main__":
         st.write("Keep track of your carb intake during training and races.")
         display_fuelling_data_upload()
 
+    else:
+        st.title("Insights")
+        st.write("")
+        
+        with st.expander("**Fuelling log**"):
+            fuelling_df = get_fuelling_data()      
+            display_fuelling_log_chart(fuelling_df)
+
+        with st.expander("**Estimated VO2max**"):
+            vo2_df = get_vo2_data()      
+            display_vo2_chart(vo2_df)

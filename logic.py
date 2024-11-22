@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 
-# Accessing secrets from Streamlit
 url: str = st.secrets["supabase"]["url"]
 key: str = st.secrets["supabase"]["key"]
 supabase: Client = create_client(url, key)
@@ -264,3 +263,18 @@ def store_fuelling_data(activity_id, nutrition_type, carbs_gram, nutrition_tag, 
         response = supabase.table('dim_fuelling').insert(df.to_dict('records')).execute()
     except Exception as e:
         return 0, [str(e)]
+    
+def get_fuelling_data() -> dict:
+    response = supabase.table('vw_fuelling') \
+        .select('*') \
+        .order('date', desc=False) \
+        .execute()
+    return response.data
+
+def get_vo2_data() -> dict:
+    response = supabase.table('fact_hrv') \
+        .select('vo2max','date_key') \
+        .order('date_key', desc=True) \
+        .limit(10) \
+        .execute()
+    return response.data

@@ -3,10 +3,21 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 import streamlit as st
+from etl import fetch_strava, run_dim_calendar, run_fact_activities
 
-url: str = st.secrets["supabase"]["url"]
-key: str = st.secrets["supabase"]["key"]
+url: str = "https://mwivhbuesrdrfhihxjqs.supabase.co"
+key: str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13aXZoYnVlc3JkcmZoaWh4anFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTk4NjE0NzQsImV4cCI6MjAzNTQzNzQ3NH0.cG7N8em6tqc2OWijtqTQg-EkUqHM6Bcf7grg-bPDcDA"
+
+#url: str = st.secrets["supabase"]["url"]
+#key: str = st.secrets["supabase"]["key"]
+
 supabase: Client = create_client(url, key)
+
+def run_etl():
+    with st.spinner("Loading new activties..."):
+        activities_df = fetch_strava()
+        run_dim_calendar(url, key)
+        new_rows, new_activities_df = run_fact_activities(url, key, activities_df)
 
 def get_volume_last8weeks() -> dict:
     response = supabase.table('vw_volume_last8weeks') \

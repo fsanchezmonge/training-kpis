@@ -1,5 +1,5 @@
 import streamlit as st
-from logic import calculate_moving_time_variation, process_uploaded_file, insert_measurements_to_db, calculate_adaptation_last4weeks, get_last_file_date, get_last_training_date, calculate_intensity_variation, get_last_activities, store_fuelling_data, get_fuelling_data, get_vo2_data
+from logic import calculate_moving_time_variation, process_uploaded_file, insert_measurements_to_db, calculate_adaptation_last4weeks, get_last_file_date, get_last_training_date, calculate_intensity_variation, get_last_activities, store_fuelling_data, get_fuelling_data, get_vo2_data, run_etl
 import datetime
 import pandas as pd
 import plotly.express as px
@@ -415,9 +415,9 @@ if __name__ == "__main__":
     # Add navigation
     page = st.sidebar.radio("", ["Indicators", "Data Entry", "Insights"])
     
-    if page == "Indicators":
+    if page == "Indicators":        
         st.title("Weekly Training Indicators:runner::bar_chart:")
-        
+        run_etl()
         display_current_week()
         st.write("")
         

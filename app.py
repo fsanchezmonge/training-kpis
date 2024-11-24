@@ -1,5 +1,5 @@
 import streamlit as st
-from logic import calculate_moving_time_variation, process_uploaded_file, insert_measurements_to_db, calculate_adaptation_last4weeks, get_last_file_date, get_last_training_date, calculate_intensity_variation, get_last_activities, store_fuelling_data, get_fuelling_data, get_vo2_data, run_etl
+from logic import calculate_moving_time_variation, process_uploaded_file, insert_measurements_to_db, calculate_adaptation_last4weeks, get_last_file_date, get_last_training_date, calculate_intensity_variation, get_last_activities, store_fuelling_data, get_fuelling_data, get_vo2_data, run_etl, fetch_strava, fetch_tokens
 import datetime
 import pandas as pd
 import plotly.express as px
@@ -409,7 +409,20 @@ def display_vo2_chart(vo2_df):
         # Show the plot in Streamlit
         st.plotly_chart(fig)
 
+def main():
+    # Ask user to input their ID or use a secure session mechanism
+    user_id = st.text_input("Enter your user ID")
+
+    if user_id:
+        access_token = fetch_tokens(user_id)
+        if access_token:
+            st.write(access_token)
+        else:
+            st.warning("Failed to authenticate. Please try again.")
+
+
 if __name__ == "__main__":
+
     st.set_page_config(page_title="Did I get better?", layout='wide', initial_sidebar_state='collapsed')
     
     # Add navigation
@@ -417,6 +430,7 @@ if __name__ == "__main__":
     
     if page == "Indicators":        
         st.title("Weekly Training Indicators:runner::bar_chart:")
+        main()
         run_etl()
         display_current_week()
         st.write("")

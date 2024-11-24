@@ -4,9 +4,13 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 from etl import fetch_strava, run_dim_calendar, run_fact_activities
+import requests
+import time
 
 url: str = "https://mwivhbuesrdrfhihxjqs.supabase.co"
 key: str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13aXZoYnVlc3JkcmZoaWh4anFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTk4NjE0NzQsImV4cCI6MjAzNTQzNzQ3NH0.cG7N8em6tqc2OWijtqTQg-EkUqHM6Bcf7grg-bPDcDA"
+client_id: str = "95885"
+client_secret: str = "9bd58f9a50e4a12d165a373bec9afe40754f4962"
 
 #url: str = st.secrets["supabase"]["url"]
 #key: str = st.secrets["supabase"]["key"]
@@ -289,3 +293,76 @@ def get_vo2_data() -> dict:
         .limit(10) \
         .execute()
     return response.data
+
+def strava_login(client_id, redirect_url):
+    auth_url = (
+        f"https://www.strava.com/oauth/authorize?"
+        f"client_id={client_id}&response_type=code&redirect_uri={redirect_url}&"
+        f"scope=read,activity:read_all"
+    )
+    st.write(f"[Login to Strava]({auth_url})")
+
+def exchange_code_for_token(auth_code):
+    token_url = "https://www.strava.com/oauth/token"
+    payload = {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "code": auth_code,
+        "grant_type": "authorization_code",
+    }
+    response = requests.post(token_url, data=payload)
+    response.raise_for_status()
+    return response.json()
+
+# Fetch user tokens
+def get_user_tokens(user_key):
+    response = supabase.table("dim_user").select("access_token, refresh_token, expires_at").eq("user_key", user_key).execute()
+    if response.data:
+        return response.data[0]
+    else:
+        return None
+
+# Update user tokens
+def update_user_tokens(user_key, access_token, refresh_token, expires_at):
+    response = supabase.table("dim_user").update({
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "expires_at": expires_at,
+    }).eq("user_key", user_key).execute()
+    return response
+
+def fetch_tokens(user_key):
+    # Get tokens from the database
+    tokens = get_user_tokens(user_key)
+    if not tokens:
+        st.warning("User not found. Please log in.")
+        return None
+
+    access_token = tokens["access_token"]
+    refresh_token = tokens["refresh_token"]
+    expires_at = tokens["expires_at"]
+
+    # Check if the access token is expired
+    if expires_at <= time.time():
+        # Refresh the token
+        token_url = "https://www.strava.com/oauth/token"
+        payload = {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token",
+        }
+        response = requests.post(token_url, data=payload)
+        response.raise_for_status()
+        token_data = response.json()
+
+        # Update tokens in the database
+        update_user_tokens(
+            user_key,
+            token_data["access_token"],
+            token_data["refresh_token"],
+            token_data["expires_at"],
+        )
+        return token_data["access_token"]
+
+    return access_token

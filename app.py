@@ -1,8 +1,9 @@
 import streamlit as st
-from logic import calculate_moving_time_variation, process_uploaded_file, insert_measurements_to_db, calculate_adaptation_last4weeks, get_last_file_date, get_last_training_date, calculate_intensity_variation, get_last_activities, store_fuelling_data, get_fuelling_data, get_vo2_data, run_etl
+from logic import calculate_moving_time_variation, process_uploaded_file, insert_measurements_to_db, calculate_adaptation_last4weeks, get_last_file_date, get_last_training_date, calculate_intensity_variation, get_last_activities, store_fuelling_data, get_fuelling_data, get_vo2_data, run_etl, get_last_activities_display
 import datetime
 import pandas as pd
 import plotly.express as px
+import numpy as np
 
 def display_training_comparison():
     with st.container(border=True, height=250):
@@ -156,29 +157,29 @@ def display_hrv_data_upload():
         except Exception as e:
             st.error(f"Error processing file: {str(e)}")
 
-def display_hrv_score_comparison():
+def display_hr_score_comparison():
     with st.container(border=True, height=250):
-        st.write("### Is my HRV score better?")
+        st.write("### Is my RHR normal?")
 
         adaptation_data = calculate_adaptation_last4weeks()
-        current_week_hrv = adaptation_data['current_week_hrv']
-        hrv_variation = adaptation_data['hrv_variation']
+        current_week_hr = adaptation_data['current_week_hr']
+        hr_variation = adaptation_data['hr_variation']
 
-        if hrv_variation is not None:
-            if hrv_variation > 0:
+        if hr_variation is not None:
+            if -5 < hr_variation < 5:  # Modified condition
                 st.markdown("<h2 style='color: #28a745;'>Yes</h2>", unsafe_allow_html=True)
-                comparison_text = "above"
+                comparison_text = "within"
                 variation_color = "#28a745"  # green
             else:
                 st.markdown("<h2 style='color: #dc3545;'>No</h2>", unsafe_allow_html=True)
-                comparison_text = "below"
+                comparison_text = "beyond"
                 variation_color = "#dc3545"  # red
             
             # Add the detailed comparison text with colored percentage
             st.write(
-                f"Your avg HRV score was {current_week_hrv }, "
-                f"<span style='color: {variation_color}'>{abs(hrv_variation):.1f}%</span> "
-                f"{comparison_text} last 3-week avg.",
+                f"Your avg HR was {current_week_hr }, "
+                f"<span style='color: {variation_color}'>{comparison_text}</span> "
+                f" 5% of your last 3-week avg.",
                 unsafe_allow_html=True
             )
         else:
@@ -409,16 +410,38 @@ def display_vo2_chart(vo2_df):
         # Show the plot in Streamlit
         st.plotly_chart(fig)
 
+def display_activities():
+    acts_list = get_last_activities_display(50)
+    acts_df = pd.DataFrame(acts_list)
+
+
+    # Get the current week start and end dates
+    today = datetime.date.today()
+    start_of_week = pd.to_datetime(today - datetime.timedelta(days=today.weekday()))  # Convert to datetime
+    end_of_week = pd.to_datetime(start_of_week + datetime.timedelta(days=6))  # Convert to datetime
+
+    # Convert 'datetime' column to datetime type if it's not already
+    acts_df['datetime'] = pd.to_datetime(acts_df['datetime'])
+
+    # Filter activities to include only those in the current week
+    acts_df = acts_df[(acts_df['datetime'] >= start_of_week) & (acts_df['datetime'] <= end_of_week)]
+
+    # Safely calculate average_pace, avoiding division by zero
+    acts_df['average_pace'] = acts_df['average_speed'].replace(0, np.nan)  # Replace 0 with NaN to avoid division by zero
+    acts_df['average_pace'] = (60 / acts_df['average_pace']).round(2)  # Calculate pace and round to 2 decimals
+
+    st.dataframe(acts_df)
+    
 if __name__ == "__main__":
-    st.set_page_config(page_title="Did I get better?", layout='wide', initial_sidebar_state='collapsed')
+    st.set_page_config(page_title="Cami App", layout='wide', initial_sidebar_state='collapsed')
     
     # Add navigation
-    page = st.sidebar.radio("", ["Indicators", "Data Entry", "Insights"])
+    page = st.sidebar.radio("", ["Indicators", "Data Entry", "Insights", "Activities"])
     
     if page == "Indicators":        
-        st.title("Weekly Training Indicators:runner::bar_chart:")
+        st.title("Weekly Indicators:runner::bar_chart:")
         run_etl()
-        display_current_week()
+        #display_current_week()
         st.write("")
         
         st.subheader("Volume")
@@ -452,13 +475,11 @@ if __name__ == "__main__":
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            display_hrv_score_comparison()
+            display_hr_score_comparison()
         with col2:
             display_sleep_quality_comparison()
         with col3:
             display_fatigue_comparison()
-        with col4:
-            display_mental_energy_comparison()
         
     elif page == "Data Entry":
         st.title("Data Entry")
@@ -473,6 +494,10 @@ if __name__ == "__main__":
         st.subheader("Fuelling Data Entry:chocolate_bar:")
         st.write("Keep track of your carb intake during training and races.")
         display_fuelling_data_upload()
+
+    elif page == "Activities":
+        st.title("My Activities")
+        display_activities()
 
     else:
         st.title("Insights")

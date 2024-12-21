@@ -43,6 +43,15 @@ def get_last_activities(limit):
         .execute()
     return response.data
 
+def get_last_activities_display(limit):
+    # Query to fetch the last 'limit' activities from the fact_activity table
+    response = supabase.table("fact_activity") \
+        .select("name, datetime, distance, moving_time, elevation_gain","average_speed","average_heartrate") \
+        .order("datetime", desc=True) \
+        .limit(50) \
+        .execute()
+    return response.data
+
 def get_last_file_date() -> dict:
     response = supabase.table('fact_hrv') \
         .select('updated_at') \
@@ -106,7 +115,7 @@ def calculate_moving_time_variation() -> dict:
 def calculate_adaptation_last4weeks() -> dict:
     data = get_adaptation_last4weeks()
 
-    current_week_hrv = data[-1]['hrv_points']
+    current_week_hr = data[-1]['hr']
     current_week_sleep_quality = data[-1]['sleep_quality']
     current_week_fatigue = data[-1]['avg_fatigue']
     current_week_mental_energy = data[-1]['avg_mental_energy']
@@ -115,24 +124,24 @@ def calculate_adaptation_last4weeks() -> dict:
     if len(data) >= 4:  # Need at least 4 weeks (current + 3 previous)
         # Calculate averages excluding current week
         previous_weeks = data[-4:-1]  # Get last 3 weeks before current week
-        avg_hrv = sum(week['hrv_points'] for week in previous_weeks) / 3
+        avg_hr = sum(week['hr'] for week in previous_weeks) / 3
         avg_sleep_quality = sum(week['sleep_quality'] for week in previous_weeks) / 3
         avg_fatigue = sum(week['avg_fatigue'] for week in previous_weeks) / 3
         avg_mental_energy = sum(week['avg_mental_energy'] for week in previous_weeks) / 3
         
-        hrv_variation = ((current_week_hrv - avg_hrv) / avg_hrv) * 100
+        hr_variation = ((current_week_hr - avg_hr) / avg_hr) * 100
         sleep_quality_variation = ((current_week_sleep_quality - avg_sleep_quality) / avg_sleep_quality) * 100
         fatigue_variation = ((current_week_fatigue - avg_fatigue) / avg_fatigue) * 100
         mental_energy_variation = ((current_week_mental_energy - avg_mental_energy) / avg_mental_energy) * 100
     else:
-        hrv_variation = None
+        hr_variation = None
         sleep_quality_variation = None
         fatigue_variation = None
         mental_energy_variation = None
 
     return {
-        'current_week_hrv': current_week_hrv,
-        'hrv_variation': hrv_variation, 
+        'current_week_hr': current_week_hr,
+        'hr_variation': hr_variation, 
         'current_week_sleep_quality': current_week_sleep_quality,
         'sleep_quality_variation': sleep_quality_variation,
         'current_week_fatigue': current_week_fatigue,
@@ -289,3 +298,4 @@ def get_vo2_data() -> dict:
         .limit(10) \
         .execute()
     return response.data
+    

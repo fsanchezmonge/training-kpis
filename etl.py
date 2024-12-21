@@ -20,6 +20,7 @@ def fetch_strava():
         res = requests.post(auth_url, data=payload, verify=False)
         try:
             access_token = res.json()['access_token']
+            st.write(access_token)
             header = {'Authorization': 'Bearer ' + access_token}
 
         except KeyError:

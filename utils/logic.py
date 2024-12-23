@@ -3,9 +3,11 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 import streamlit as st
-from etl import fetch_strava, run_dim_calendar, run_fact_activities
+from utils.etl import fetch_strava, run_dim_calendar, run_fact_activities
 import requests
 import time
+import re
+import hashlib
 
 url: str = "https://mwivhbuesrdrfhihxjqs.supabase.co"
 key: str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13aXZoYnVlc3JkcmZoaWh4anFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTk4NjE0NzQsImV4cCI6MjAzNTQzNzQ3NH0.cG7N8em6tqc2OWijtqTQg-EkUqHM6Bcf7grg-bPDcDA"
@@ -294,3 +296,28 @@ def get_vo2_data() -> dict:
         .execute()
     return response.data
 
+def is_valid_email(email):
+    # Simple regex for validating an email format
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+def insert_user(email, password):
+    # Insert email and password into the dim_user table
+    response = supabase.table("dim_user").insert({"email": email, "user_psswd": password}).execute()
+    return response
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def login_user(email, password):
+    # Hash the provided password to compare with the stored hash
+    
+    # Query to check if the email and hashed password exist in the dim_user table
+    response = supabase.table("dim_user") \
+        .select("*") \
+        .eq("email", email) \
+        .eq("user_psswd", password) \
+        .execute()
+    
+    # Return True if a matching user is found, otherwise return False
+    return response.data
